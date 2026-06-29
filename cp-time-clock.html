@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CP Time Clock — A Temporality Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --bg: #14101f;
+  --panel: #1f1832;
+  --panel-2: #261d3c;
+  --ink: #f4efe6;
+  --ink-dim: #b7aed1;
+  --coral: #ff6b4a;
+  --cyan: #5ee6d9;
+  --magenta: #ff5da2;
+  --lavender: #8b7fb8;
+  --gold: #e8c468;
+  --line: rgba(244,239,230,0.14);
+  --font-display: 'Courier Prime', monospace;
+  --font-body: 'Spectral', serif;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin: 0;
+  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(255,107,74,0.10), transparent 40%),
+    radial-gradient(circle at 88% 92%, rgba(94,230,217,0.08), transparent 45%);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  padding: 0 0 80px;
+}
+
+a{ color: var(--cyan); }
+
+/* ---------- HERO ---------- */
+.hero{
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 64px 24px 32px;
+  text-align: center;
+}
+.eyebrow{
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--coral);
+  margin-bottom: 14px;
+}
+.hero h1{
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  letter-spacing: 0.01em;
+  margin: 0 0 18px;
+  line-height: 1.1;
+}
+.hero p{
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--ink-dim);
+  max-width: 620px;
+  margin: 0 auto;
+  font-style: italic;
+}
+
+/* ---------- CONSOLE (instructions + clock) ---------- */
+.console{
+  max-width: 980px;
+  margin: 40px auto 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 28px;
+  padding: 0 24px;
+  flex-wrap: wrap;
+}
+
+.panel{
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 24px;
+}
+
+#instructions-box{
+  flex: 1 1 320px;
+  max-width: 360px;
+}
+#instructions-box h3{
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  margin: 0 0 16px;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+#instructions-box ol{
+  padding-left: 1.3em;
+  margin: 0;
+  line-height: 1.75;
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+}
+#instructions-box strong{ color: var(--ink); }
+
+#clock-panel{
+  flex: 0 0 auto;
+  text-align: center;
+  width: 360px;
+}
+#prompt{
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--cyan);
+  min-height: 1.4em;
+  margin-bottom: 14px;
+  letter-spacing: 0.01em;
+}
+#clock-container{
+  position: relative;
+  width: 280px; height: 280px;
+  margin: 0 auto 18px;
+  border: 3px solid var(--line);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, #2a2140, #190f29);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 0 0 6px rgba(255,107,74,0.05);
+}
+.clock-center-dot{
+  position:absolute; top:50%; left:50%; width:10px; height:10px;
+  background: var(--coral); border-radius:50%;
+  transform: translate(-50%,-50%); z-index:5;
+  box-shadow: 0 0 10px rgba(255,107,74,0.8);
+}
+.clock-number{
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+}
+.hand-pivot{
+  position: absolute; top:50%; left:50%; width:0; height:0;
+}
+.hand{
+  position: absolute;
+  top: -2px; left: 0;
+  transform-origin: 0% 50%;
+  border-radius: 3px;
+  cursor: grab;
+}
+.hour-hand{ width: 78px; height: 5px; background: var(--coral); }
+.minute-hand{ width: 108px; height: 3px; background: var(--cyan); }
+.hand:active{ cursor: grabbing; }
+.hand::after{
+  content:'';
+  position:absolute; right:-7px; top:50%;
+  width:14px; height:14px; border-radius:50%;
+  background: inherit; opacity:0.35;
+  transform: translateY(-50%);
+}
+
+.controls{ display:flex; gap:10px; justify-content:center; margin-bottom: 14px; }
+#am-pm-toggle, #calculate-button{
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.65em 1.1em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#am-pm-toggle{ background: var(--panel-2); color: var(--ink); border-color: var(--line); }
+#calculate-button{ background: var(--coral); color: #1a0f0a; font-weight: 700; }
+#am-pm-toggle:hover, #calculate-button:hover{ transform: translateY(-1px); }
+#calculate-button:hover{ box-shadow: 0 4px 16px rgba(255,107,74,0.35); }
+
+#result{
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--gold);
+  min-height: 1.4em;
+  margin-bottom: 8px;
+}
+#calculation-details{
+  text-align: left;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--ink-dim);
+  white-space: pre-wrap;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-height: 1.4em;
+}
+#calculation-details .hl{ color: var(--magenta); font-weight: 700; }
+
+/* ---------- ATLAS ---------- */
+.atlas{
+  max-width: 1080px;
+  margin: 64px auto 0;
+  padding: 0 24px;
+}
+.atlas-head{ text-align:center; margin-bottom: 36px; }
+.atlas-head h2{
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 0 0 10px;
+  letter-spacing: 0.01em;
+}
+.atlas-head p{
+  color: var(--ink-dim);
+  max-width: 560px;
+  margin: 0 auto;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.atlas-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.t-card{
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 20px 22px;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease, transform 0.4s ease, opacity 0.4s ease;
+}
+.t-card .range{
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--card-accent, var(--coral));
+  margin-bottom: 6px;
+}
+.t-card h3{
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  margin: 0 0 12px;
+}
+.t-card .viz{
+  width: 100%;
+  height: 110px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  display:flex; align-items:center; justify-content:center;
+  overflow: hidden;
+}
+.t-card .viz svg{ width: 100%; height: 100%; }
+.t-card p{
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ink-dim);
+}
+
+.t-card.is-dim{ opacity: 0.45; transform: scale(0.985); }
+.t-card.is-active{
+  border-color: var(--card-accent);
+  box-shadow: 0 0 0 1px var(--card-accent), 0 18px 40px -12px var(--card-accent);
+  transform: scale(1.015);
+}
+.t-card.is-active h3{ color: var(--card-accent); }
+
+/* per-card accent + path colors */
+.t-card[data-key="linear"]{ --card-accent: var(--coral); }
+.t-card[data-key="cyclical"]{ --card-accent: var(--cyan); }
+.t-card[data-key="fractal"]{ --card-accent: var(--gold); }
+.t-card[data-key="oscillatory"]{ --card-accent: var(--magenta); }
+.t-card[data-key="coiled"]{ --card-accent: var(--lavender); }
+.t-card[data-key="speculative-other"]{ --card-accent: #ffffff; }
+
+.viz path, .viz line, .viz polyline{ fill: none; stroke-width: 2; }
+.viz circle.dot{ filter: drop-shadow(0 0 4px currentColor); }
+
+@media (max-width: 700px){
+  .console{ flex-direction: column; align-items: center; }
+  #instructions-box{ max-width: 320px; order: 2; }
+  #clock-panel{ order: 1; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="eyebrow">a clock for time that refuses to be a line</div>
+  <h1>CP TIME CLOCK</h1>
+  <p>Set when the party starts, drag the hands to when you'd actually arrive, and the clock will tell you not how late you are — but what <em>shape</em> your lateness takes.</p>
+</header>
+
+<main class="console">
+
+  <div id="instructions-box" class="panel">
+    <h3>How to use it</h3>
+    <ol>
+      <li>Read the prompt below the dial.</li>
+      <li>Drag the <strong>coral hour hand</strong> to your arrival hour.</li>
+      <li>Drag the <strong>cyan minute hand</strong> to your arrival minute.</li>
+      <li>Click <strong>AM / PM</strong> to set the half of the day.</li>
+      <li>Hit <strong>Calculate CP Time</strong>.</li>
+      <li>Scroll down — the matching temporality lights up in the Atlas.</li>
+    </ol>
+  </div>
+
+  <div id="clock-panel">
+    <div id="prompt"></div>
+    <div id="clock-container">
+      <div class="clock-center-dot"></div>
+      <div class="clock-number" style="top:6%; left:50%; transform:translate(-50%,-50%);">12</div>
+      <div class="clock-number" style="top:17%; right:11%; transform:translate(50%,-50%);">1</div>
+      <div class="clock-number" style="top:30%; right:2%; transform:translate(50%,-50%);">2</div>
+      <div class="clock-number" style="top:50%; right:-2%; transform:translate(50%,-50%);">3</div>
+      <div class="clock-number" style="bottom:30%; right:2%; transform:translate(50%,50%);">4</div>
+      <div class="clock-number" style="bottom:17%; right:11%; transform:translate(50%,50%);">5</div>
+      <div class="clock-number" style="bottom:6%; left:50%; transform:translate(-50%,50%);">6</div>
+      <div class="clock-number" style="bottom:17%; left:11%; transform:translate(-50%,50%);">7</div>
+      <div class="clock-number" style="bottom:30%; left:2%; transform:translate(-50%,50%);">8</div>
+      <div class="clock-number" style="top:50%; left:-2%; transform:translate(-50%,-50%);">9</div>
+      <div class="clock-number" style="top:30%; left:2%; transform:translate(-50%,-50%);">10</div>
+      <div class="clock-number" style="top:17%; left:11%; transform:translate(-50%,-50%);">11</div>
+
+      <div class="hand-pivot"><div id="hour-hand" class="hand hour-hand"></div></div>
+      <div class="hand-pivot"><div id="minute-hand" class="hand minute-hand"></div></div>
+    </div>
+
+    <div class="controls">
+      <button id="am-pm-toggle">AM</button>
+      <button id="calculate-button">Calculate CP Time</button>
+    </div>
+    <div id="result"></div>
+    <div id="calculation-details"></div>
+  </div>
+</main>
+
+<section class="atlas">
+  <div class="atlas-head">
+    <h2>The Temporality Atlas</h2>
+    <p>Six shapes time can take once it stops pretending to be a straight line. Each diagram moves the way that temporality actually behaves.</p>
+  </div>
+
+  <div class="atlas-grid">
+
+    <article class="t-card" data-key="linear">
+      <div class="range">≤ 0.5 hrs</div>
+      <h3>Linear</h3>
+      <div class="viz"><svg viewBox="0 0 200 110" id="viz-linear">
+        <line x1="20" y1="55" x2="180" y2="55" stroke="var(--coral)" stroke-dasharray="3 5" opacity="0.4"/>
+        <circle class="dot" r="5" fill="var(--coral)" style="color:var(--coral)">
+          <animateMotion path="M20,55 L180,55" dur="2.6s" repeatCount="indefinite"/>
+        </circle>
+      </svg></div>
+      <p>Passing as punctual. Blending into dominant clock-time without notice — or you're about to leave early.</p>
+    </article>
+
+    <article class="t-card" data-key="cyclical">
+      <div class="range">≤ 2 hrs</div>
+      <h3>Cyclical</h3>
+      <div class="viz"><svg viewBox="0 0 200 110" id="viz-cyclical">
+        <circle cx="100" cy="55" r="40" stroke="var(--cyan)" opacity="0.4"/>
+        <circle class="dot" r="5" fill="var(--cyan)" style="color:var(--cyan)">
+          <animateMotion path="M140,55 A40,40 0 1,1 60,55 A40,40 0 1,1 140,55" dur="3.2s" repeatCount="indefinite"/>
+        </circle>
+      </svg></div>
+      <p>Rhythmic loops and returns.</p>
+    </article>
+
+    <article class="t-card" data-key="fractal">
+      <div class="range">≤ 4 hrs</div>
+      <h3>Fractal</h3>
+      <div class="viz"><svg viewBox="0 0 200 110" id="viz-fractal"></svg></div>
+      <p>Nested lateness — recursive folds of memory, patterns within patterns.</p>
+    </article>
+
+    <article class="t-card" data-key="oscillatory">
+      <div class="range">≤ 6 hrs</div>
+      <h3>Oscillatory</h3>
+      <div class="viz"><svg viewBox="0 0 200 110" id="viz-oscillatory"></svg></div>
+      <p>Temporal pulses — presence and absence swinging in and out.</p>
+    </article>
+
+    <article class="t-card" data-key="coiled">
+      <div class="range">≤ 8 hrs</div>
+      <h3>Coiled</h3>
+      <div class="viz"><svg viewBox="0 0 200 110" id="viz-coiled"></svg></div>
+      <p>Spiral time: layered, compressed narrative.</p>
+    </article>
+
+    <article class="t-card" data-key="speculative-other">
+      <div class="range">&gt; 8 hrs</div>
+      <h3>Speculative Other</h3>
+      <div class="viz"><svg viewBox="0 0 200 110" id="viz-speculative"></svg></div>
+      <p>Fugitive deep-time. Quantum Black time, imagining beyond this dimension.</p>
+    </article>
+
+  </div>
+</section>
+
+<script>
+/* ---------------------------------------------------------
+   PART 1 — generate the procedural shape diagrams
+--------------------------------------------------------- */
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+// ---- Fractal: recursive branching, pulsing at every depth ----
+(function(){
+  const svg = document.getElementById('viz-fractal');
+  const segments = [];
+  const nodes = [];
+  function branch(x,y,angle,length,depth){
+    if(depth === 0){ nodes.push({x,y,depth}); return; }
+    const x2 = x + length*Math.cos(angle);
+    const y2 = y + length*Math.sin(angle);
+    segments.push({x1:x,y1:y,x2,y2,depth});
+    nodes.push({x,y,depth});
+    branch(x2,y2, angle - 0.55, length*0.68, depth-1);
+    branch(x2,y2, angle + 0.55, length*0.68, depth-1);
+  }
+  branch(100, 100, -Math.PI/2, 30, 4);
+
+  segments.forEach(s=>{
+    svg.appendChild(el('line', {
+      x1:s.x1.toFixed(1), y1:s.y1.toFixed(1), x2:s.x2.toFixed(1), y2:s.y2.toFixed(1),
+      stroke:'var(--gold)', 'stroke-width': Math.max(0.8, s.depth*0.6), opacity:0.55
+    }));
+  });
+  nodes.forEach((n,i)=>{
+    const c = el('circle', {cx:n.x.toFixed(1), cy:n.y.toFixed(1), r: 1.6 + n.depth*0.5, fill:'var(--gold)'});
+    const anim = el('animate', {
+      attributeName:'opacity', values:'0.25;1;0.25', dur:'2.4s',
+      begin:(i*0.08).toFixed(2)+'s', repeatCount:'indefinite'
+    });
+    c.appendChild(anim);
+    svg.appendChild(c);
+  });
+})();
+
+// ---- Oscillatory: sine wave, dot riding the wave ----
+(function(){
+  const svg = document.getElementById('viz-oscillatory');
+  const w=200,h=110,mid=55,amp=28,cycles=2.5,steps=80;
+  let pts = [];
+  for(let i=0;i<=steps;i++){
+    const t = i/steps;
+    const x = 10 + t*(w-20);
+    const y = mid - Math.sin(t*Math.PI*2*cycles)*amp;
+    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  const d = 'M'+pts.join(' L');
+  svg.appendChild(el('path', {d, stroke:'var(--magenta)', opacity:0.45}));
+  const dot = el('circle', {class:'dot', r:5, fill:'var(--magenta)', style:'color:var(--magenta)'});
+  dot.appendChild(el('animateMotion', {path:d, dur:'3.4s', repeatCount:'indefinite'}));
+  svg.appendChild(dot);
+})();
+
+// ---- Coiled: archimedean spiral, dot winding inward then jumping back out ----
+(function(){
+  const svg = document.getElementById('viz-coiled');
+  const cx=100, cy=55, turns=3, maxR=44, steps=140;
+  let pts = [];
+  for(let i=0;i<=steps;i++){
+    const t = i/steps;
+    const angle = t*turns*Math.PI*2;
+    const r = (1-t)*maxR + 4; // winds INWARD, compressing — coiled/compressed narrative
+    const x = cx + r*Math.cos(angle);
+    const y = cy + r*Math.sin(angle);
+    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  const d = 'M'+pts.join(' L');
+  svg.appendChild(el('path', {d, stroke:'var(--lavender)', opacity:0.45}));
+  const dot = el('circle', {class:'dot', r:5, fill:'var(--lavender)', style:'color:var(--lavender)'});
+  dot.appendChild(el('animateMotion', {path:d, dur:'4s', repeatCount:'indefinite'}));
+  svg.appendChild(dot);
+})();
+
+// ---- Speculative Other: a scatter of points the dot teleports between ----
+(function(){
+  const svg = document.getElementById('viz-speculative');
+  const pts = [
+    [30,30],[170,25],[60,80],[140,85],[100,50],[20,75],[180,70],[105,20],[150,40],[55,20]
+  ];
+  // faint entanglement lines between a few non-adjacent points
+  const links = [[0,4],[4,8],[2,9],[6,3]];
+  links.forEach(([a,b])=>{
+    svg.appendChild(el('line', {
+      x1:pts[a][0], y1:pts[a][1], x2:pts[b][0], y2:pts[b][1],
+      stroke:'#ffffff', opacity:0.12
+    }));
+  });
+  pts.forEach((p,i)=>{
+    const c = el('circle', {cx:p[0], cy:p[1], r:3, fill:'#ffffff'});
+    c.appendChild(el('animate', {
+      attributeName:'opacity', values:'0.15;1;0.15', dur:(1.6+i*0.21).toFixed(2)+'s',
+      begin:(i*0.13).toFixed(2)+'s', repeatCount:'indefinite'
+    }));
+    svg.appendChild(c);
+  });
+  // a dot that jumps discretely between the scatter points — non-continuous motion
+  const jumpPath = 'M'+pts.map(p=>p.join(',')).join(' L')+' Z';
+  const dot = el('circle', {class:'dot', r:5, fill:'#ffffff', style:'color:#ffffff'});
+  dot.appendChild(el('animateMotion', {
+    path: jumpPath, dur:'5s', repeatCount:'indefinite', calcMode:'discrete'
+  }));
+  svg.appendChild(dot);
+})();
+
+/* ---------------------------------------------------------
+   PART 2 — the clock itself
+--------------------------------------------------------- */
+let hourAngle = 0;     // degrees, 0 = east, increases clockwise
+let minuteAngle = 0;
+let isPM = false;
+
+const hourHand   = document.getElementById('hour-hand');
+const minuteHand = document.getElementById('minute-hand');
+const resultDiv  = document.getElementById('result');
+const detailsDiv = document.getElementById('calculation-details');
+const amPmToggle = document.getElementById('am-pm-toggle');
+const clockContainer = document.getElementById('clock-container');
+
+// typewriter prompt
+const promptText = "The party starts at 7pm. What time you going?";
+const promptEl = document.getElementById('prompt');
+let pIndex = 0;
+function typeWriter(){
+  if(pIndex < promptText.length){
+    promptEl.textContent += promptText.charAt(pIndex);
+    pIndex++;
+    setTimeout(typeWriter, 42);
+  }
+}
+typeWriter();
+
+amPmToggle.onclick = function(){
+  isPM = !isPM;
+  amPmToggle.textContent = isPM ? 'PM' : 'AM';
+};
+
+function dragElement(handle, onDrag){
+  function start(e){
+    e.preventDefault();
+    const move = (ev) => onDrag(ev.touches ? ev.touches[0] : ev);
+    const end = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', end);
+      document.removeEventListener('touchmove', move);
+      document.removeEventListener('touchend', end);
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchmove', move, {passive:false});
+    document.addEventListener('touchend', end);
+  }
+  handle.addEventListener('mousedown', start);
+  handle.addEventListener('touchstart', start, {passive:false});
+}
+
+function angleFromEvent(clientX, clientY){
+  const rect = clockContainer.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top + rect.height/2;
+  const dx = clientX - cx;
+  const dy = clientY - cy;
+  let a = Math.atan2(dy, dx) * (180/Math.PI);
+  if(a < 0) a += 360;
+  return a;
+}
+
+dragElement(hourHand, (ev)=>{
+  hourAngle = angleFromEvent(ev.clientX, ev.clientY);
+  hourHand.parentElement.style.transform = `rotate(${hourAngle}deg)`;
+});
+dragElement(minuteHand, (ev)=>{
+  minuteAngle = angleFromEvent(ev.clientX, ev.clientY);
+  minuteHand.parentElement.style.transform = `rotate(${minuteAngle}deg)`;
+});
+
+// initialize hands pointing somewhere reasonable (7:00)
+hourAngle = 30;   // ~ toward 7-ish visually after offset, just a starting pose
+minuteAngle = 270;
+hourHand.parentElement.style.transform = `rotate(${hourAngle}deg)`;
+minuteHand.parentElement.style.transform = `rotate(${minuteAngle}deg)`;
+
+function calculateTimeFromAngles(){
+  // offset by 90deg so that "up" (12 o'clock position) = hour/minute 0
+  const adjustedHour = (hourAngle + 90) % 360;
+  const adjustedMinute = (minuteAngle + 90) % 360;
+  let hours = Math.floor(adjustedHour / 30) % 12;
+  const minutes = Math.floor(adjustedMinute / 6) % 60;
+  if(isPM && hours !== 12) hours += 12;
+  if(!isPM && hours === 12) hours = 0;
+  return { hours, minutes };
+}
+
+function determineTemporality(diff){
+  if (diff <= 0.5) return "Linear";
+  if (diff <= 2)   return "Cyclical";
+  if (diff <= 4)   return "Fractal";
+  if (diff <= 6)   return "Oscillatory";
+  if (diff <= 8)   return "Coiled";
+  return "Speculative Other";
+}
+
+function applyAdjustment(diff, temporality){
+  switch(temporality){
+    case "Linear": return diff;
+    case "Cyclical": return diff * 0.75;
+    case "Fractal": return Math.pow(diff, 1.5);
+    case "Oscillatory": return Math.abs(Math.sin(diff) * 2);
+    case "Coiled": return diff + Math.sin(diff) * 1.5;
+    case "Speculative Other": return Math.pow(diff, 2) + (Math.random()-0.5)*2;
+    default: return diff;
+  }
+}
+
+function keyFor(temporality){
+  return temporality.toLowerCase().replace(/\s+/g, '-');
+}
+
+function typeCalculation(element, lines){
+  element.innerHTML = '';
+  let i = 0;
+  function step(){
+    if(i < lines.length){
+      element.innerHTML += lines[i] + '\n';
+      i++;
+      setTimeout(step, 420);
+    }
+  }
+  step();
+}
+
+function highlightCard(temporality){
+  const targetKey = keyFor(temporality);
+  document.querySelectorAll('.t-card').forEach(card=>{
+    card.classList.remove('is-active','is-dim');
+    if(card.dataset.key === targetKey){
+      card.classList.add('is-active');
+    } else {
+      card.classList.add('is-dim');
+    }
+  });
+  const target = document.querySelector(`.t-card[data-key="${targetKey}"]`);
+  if(target){
+    setTimeout(()=> target.scrollIntoView({behavior:'smooth', block:'center'}), 700);
+  }
+}
+
+document.getElementById('calculate-button').onclick = function(){
+  const { hours, minutes } = calculateTimeFromAngles();
+  const arrivalTime = hours + minutes/60;
+  const scheduledTime = 19; // 7 PM
+
+  const timeDifference = Math.abs(arrivalTime - scheduledTime);
+  const isLate = arrivalTime > scheduledTime;
+
+  const temporality = determineTemporality(timeDifference);
+  const adjusted = applyAdjustment(timeDifference, temporality);
+  const hrs = Math.floor(adjusted);
+  const mins = Math.round((adjusted % 1) * 60);
+
+  const displayHour = hours % 12 || 12;
+  const displayMin = minutes < 10 ? '0'+minutes : minutes;
+  const ampm = isPM ? 'PM' : 'AM';
+
+  resultDiv.textContent = `7 PM means ${displayHour}:${displayMin} ${ampm} to you.`;
+
+  const lines = [
+    `Scheduled Time: 7:00 PM (19:00)`,
+    `Your Arrival Time: ${displayHour}:${displayMin} ${ampm}`,
+    `Raw Difference: ${Math.floor(timeDifference)}h ${Math.round((timeDifference%1)*60)}m`,
+    `Temporality Detected: <span class="hl">${temporality}</span>`,
+    `Adjusted Difference: ${hrs ? hrs+'h ' : ''}${mins}m ${isLate ? 'late' : 'early'}`
+  ];
+  typeCalculation(detailsDiv, lines);
+  highlightCard(temporality);
+};
+</script>
+
+</body>
+</html>
